@@ -1,0 +1,51 @@
+name: Build and Deploy Java App
+
+on:
+  push:
+    branches:
+      - main  # 🔁 Triggers when you push to the main branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      NEXUS_URL: http://52.91.250.135:8081/repository/maven-releases
+      GROUP_ID_PATH: com/example
+      ARTIFACT_ID: java-app
+      VERSION: 1.0.0
+      JAR_NAME: java-app-1.0.0.jar
+
+    steps:
+    - name: Checkout source code
+      uses: actions/checkout@v3
+
+    - name: Set up Java
+      uses: actions/setup-java@v3
+      with:
+        java-version: '11'
+        distribution: 'temurin'
+
+    - name: Build and Deploy to Nexus
+      run: mvn clean deploy -DskipTests
+      env:
+        MAVEN_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+        MAVEN_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+
+    - name: SSH into EC2 and deploy app
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: 52.91.250.135
+        username: ec2-user
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          cd /home/ec2-user/javaapp
+          echo "Downloading JAR from Nexus..."
+          wget --user=${{ secrets.NEXUS_USERNAME }} --password=${{ secrets.NEXUS_PASSWORD }} \
+            ${{ env.NEXUS_URL }}/${{ env.GROUP_ID_PATH }}/${{ env.ARTIFACT_ID }}/${{ env.VERSION }}/${{ env.JAR_NAME }} -O java-app.jar
+          
+          echo "Killing existing app (if any)..."
+          pkill -f java-app.jar || true
+          
+          echo "Starting app with nohup..."
+          nohup java -jar java-app.jar > app.log 2>&1 &
