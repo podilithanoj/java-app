@@ -3,7 +3,7 @@ name: Build and Deploy Java App
 on:
   push:
     branches:
-      - main  # 🔁 Triggers when you push to the main branch
+      - main
 
 jobs:
   build-and-deploy:
@@ -20,17 +20,29 @@ jobs:
     - name: Checkout source code
       uses: actions/checkout@v3
 
-    - name: Set up Java
+    - name: Set up Java 11
       uses: actions/setup-java@v3
       with:
         java-version: '11'
         distribution: 'temurin'
 
+    - name: Generate Maven settings.xml for Nexus auth
+      run: |
+        mkdir -p ~/.m2
+        cat <<EOF > ~/.m2/settings.xml
+        <settings>
+          <servers>
+            <server>
+              <id>nexus-releases</id>
+              <username>${{ secrets.NEXUS_USERNAME }}</username>
+              <password>${{ secrets.NEXUS_PASSWORD }}</password>
+            </server>
+          </servers>
+        </settings>
+        EOF
+
     - name: Build and Deploy to Nexus
       run: mvn clean deploy -DskipTests
-      env:
-        MAVEN_USERNAME: ${{ secrets.NEXUS_USERNAME }}
-        MAVEN_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
 
     - name: SSH into EC2 and deploy app
       uses: appleboy/ssh-action@v1.0.3
@@ -40,12 +52,12 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
           cd /home/ec2-user/javaapp
-          echo "Downloading JAR from Nexus..."
+          echo "Downloading latest jar from Nexus..."
           wget --user=${{ secrets.NEXUS_USERNAME }} --password=${{ secrets.NEXUS_PASSWORD }} \
             ${{ env.NEXUS_URL }}/${{ env.GROUP_ID_PATH }}/${{ env.ARTIFACT_ID }}/${{ env.VERSION }}/${{ env.JAR_NAME }} -O java-app.jar
           
-          echo "Killing existing app (if any)..."
+          echo "Stopping existing app (if running)..."
           pkill -f java-app.jar || true
           
-          echo "Starting app with nohup..."
+          echo "Starting app in background with nohup..."
           nohup java -jar java-app.jar > app.log 2>&1 &
