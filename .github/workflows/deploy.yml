@@ -31,11 +31,15 @@ jobs:
           METADATA_URL="$BASE_URL/maven-metadata.xml"
           ARTIFACT_NAME="gradle-java-app"
 
-          echo "Fetching metadata from Nexus..."
+          echo "📦 Fetching metadata from Nexus..."
           curl -s -u admin:Admin@123 "$METADATA_URL" -o maven-metadata.xml
+
+          echo "📝 Snapshot metadata content:"
+          cat maven-metadata.xml
 
           SNAPSHOT_VERSION=$(grep -A1 '<extension>jar</extension>' maven-metadata.xml \
             | grep '<value>' \
+            | head -n1 \
             | sed -E 's:.*<value>(.*)</value>:\1:')
 
           if [ -z "$SNAPSHOT_VERSION" ]; then
@@ -43,9 +47,12 @@ jobs:
             exit 1
           fi
 
-          JAR_NAME="$ARTIFACT_NAME-$SNAPSHOT_VERSION.jar"
-          echo "Downloading: $JAR_NAME"
+          JAR_NAME="${ARTIFACT_NAME}-${SNAPSHOT_VERSION}.jar"
+          echo "⬇️ Downloading: $JAR_NAME"
           curl -u admin:Admin@123 -O "$BASE_URL/$JAR_NAME"
+
+          echo "✅ Successfully downloaded: $JAR_NAME"
+          echo "JAR_NAME=$JAR_NAME" >> $GITHUB_ENV
 
       - name: Write SSH key to file
         run: |
@@ -54,7 +61,10 @@ jobs:
 
       - name: Deploy to EC2
         run: |
+          echo "📤 Copying $JAR_NAME to EC2..."
           scp -i key.pem -o StrictHostKeyChecking=no "$JAR_NAME" appuser@3.93.64.102:/opt/myapp/app.jar
+
+          echo "🚀 Restarting app on EC2..."
           ssh -i key.pem -o StrictHostKeyChecking=no appuser@3.93.64.102 <<'EOF'
             pkill -f app.jar || true
             nohup java -jar /opt/myapp/app.jar > /opt/myapp/app.log 2>&1 &
