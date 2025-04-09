@@ -3,11 +3,11 @@ name: Build & Publish to Nexus
 on:
   push:
     branches:
-      - main  # Triggers when you push to the main branch
+      - main
 
 jobs:
   publish:
-    runs-on: self-hosted  # Your self-hosted GitHub Actions runner
+    runs-on: self-hosted
 
     steps:
       - name: Checkout code
@@ -19,8 +19,5 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
 
-      - name: Make Gradle wrapper executable
-        run: chmod +x ./gradlew
-
       - name: Build and Publish to Nexus
-        run: ./gradlew publish
+        run: gradle publish
