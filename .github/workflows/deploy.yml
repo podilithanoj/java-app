@@ -30,12 +30,19 @@ jobs:
           BASE_URL="http://54.81.136.248:8081/repository/maven-snapshots/com/example/gradle-java-app/1.0-SNAPSHOT"
           METADATA_URL="$BASE_URL/maven-metadata.xml"
 
-          # Parse latest .jar file from snapshot metadata
-          JAR_NAME=$(curl -s -u admin:Admin@123 "$METADATA_URL" \
-            | grep -A1 '<snapshotVersion>' \
+          echo "Fetching metadata from Nexus..."
+          curl -s -u admin:Admin@123 "$METADATA_URL" -o maven-metadata.xml
+
+          JAR_NAME=$(grep -A2 '<snapshotVersion>' maven-metadata.xml \
             | grep '<value>' \
+            | grep '\.jar' \
             | head -n1 \
-            | sed -E 's:.*<value>(.*\.jar)</value>:\1:')
+            | sed -E 's:.*<value>(.*)</value>:\1:')
+
+          if [ -z "$JAR_NAME" ]; then
+            echo "❌ Could not find .jar in snapshot metadata!"
+            exit 1
+          fi
 
           echo "Downloading: $JAR_NAME"
           curl -u admin:Admin@123 -O "$BASE_URL/$JAR_NAME"
@@ -47,7 +54,7 @@ jobs:
 
       - name: Deploy to EC2
         run: |
-          scp -i key.pem -o StrictHostKeyChecking=no $JAR_NAME appuser@3.93.64.102:/opt/myapp/app.jar
+          scp -i key.pem -o StrictHostKeyChecking=no "$JAR_NAME" appuser@3.93.64.102:/opt/myapp/app.jar
           ssh -i key.pem -o StrictHostKeyChecking=no appuser@3.93.64.102 <<'EOF'
             pkill -f app.jar || true
             nohup java -jar /opt/myapp/app.jar > /opt/myapp/app.log 2>&1 &
