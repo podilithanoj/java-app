@@ -17,7 +17,7 @@ dependencies {
 jar {
     manifest {
         attributes(
-            'Main-Class': 'com.example.Main' // ✅ Replace with your real entry point class
+            'Main-Class': 'com.yourcompany.app.Application' // ✅ Replace this with your actual main class
         )
     }
 }
@@ -28,13 +28,13 @@ publishing {
             from components.java
         }
     }
+
     repositories {
         maven {
             name = "Nexus"
             url = uri("http://54.81.136.248:8081/repository/maven-snapshots")
 
-            // ✅ Allow publishing to non-HTTPS Nexus repo (required for Gradle 8+)
-            allowInsecureProtocol = true
+            allowInsecureProtocol = true // ✅ Needed for HTTP in Gradle 8+
 
             credentials {
                 username = "admin"
