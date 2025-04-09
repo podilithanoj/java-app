@@ -29,21 +29,21 @@ jobs:
         run: |
           BASE_URL="http://54.81.136.248:8081/repository/maven-snapshots/com/example/gradle-java-app/1.0-SNAPSHOT"
           METADATA_URL="$BASE_URL/maven-metadata.xml"
+          ARTIFACT_NAME="gradle-java-app"
 
           echo "Fetching metadata from Nexus..."
           curl -s -u admin:Admin@123 "$METADATA_URL" -o maven-metadata.xml
 
-          JAR_NAME=$(grep -A2 '<snapshotVersion>' maven-metadata.xml \
+          SNAPSHOT_VERSION=$(grep -A1 '<extension>jar</extension>' maven-metadata.xml \
             | grep '<value>' \
-            | grep '\.jar' \
-            | head -n1 \
             | sed -E 's:.*<value>(.*)</value>:\1:')
 
-          if [ -z "$JAR_NAME" ]; then
-            echo "❌ Could not find .jar in snapshot metadata!"
+          if [ -z "$SNAPSHOT_VERSION" ]; then
+            echo "❌ Could not extract snapshot version for .jar!"
             exit 1
           fi
 
+          JAR_NAME="$ARTIFACT_NAME-$SNAPSHOT_VERSION.jar"
           echo "Downloading: $JAR_NAME"
           curl -u admin:Admin@123 -O "$BASE_URL/$JAR_NAME"
 
