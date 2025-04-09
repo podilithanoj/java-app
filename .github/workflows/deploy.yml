@@ -18,6 +18,8 @@ jobs:
         with:
           java-version: '11'
           distribution: 'temurin'
+      - name: Make Gradle Wrapper Executable
+        run: chmod +x ./gradlew    
 
       - name: Build and Publish to Nexus
         run: gradle publish
