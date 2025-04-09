@@ -18,8 +18,6 @@ jobs:
         with:
           java-version: '11'
           distribution: 'temurin'
-      - name: Make Gradle Wrapper Executable
-        run: chmod +x ./gradlew    
 
       - name: Build and Publish to Nexus
         run: gradle publish
@@ -28,20 +26,16 @@ jobs:
         run: |
           curl -u admin:Admin@123 -O \
           http://54.81.136.248:8081/repository/maven-snapshots/com/example/gradle-java-app/1.0-SNAPSHOT/gradle-java-app-1.0-SNAPSHOT.jar
-
       - name: Write SSH key to file
         run: |
           echo "${{ secrets.EC2_SSH_KEY }}" > key.pem
           chmod 600 key.pem
-
       - name: Deploy to EC2
         run: |
           scp -i key.pem -o StrictHostKeyChecking=no gradle-java-app-1.0-SNAPSHOT.jar appuser@3.93.64.102:/opt/myapp/app.jar
-
           ssh -i key.pem -o StrictHostKeyChecking=no appuser@3.93.64.102 <<'EOF'
             pkill -f app.jar || true
             nohup java -jar /opt/myapp/app.jar > /opt/myapp/app.log 2>&1 &
           EOF
-
       - name: Clean up SSH key
         run: rm -f key.pem
