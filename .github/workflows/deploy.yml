@@ -29,8 +29,15 @@ jobs:
         run: |
           BASE_URL="http://54.81.136.248:8081/repository/maven-snapshots/com/example/gradle-java-app/1.0-SNAPSHOT"
           METADATA_URL="$BASE_URL/maven-metadata.xml"
-          JAR_NAME=$(curl -s -u admin:Admin@123 $METADATA_URL | grep -m 1 '<value>' | sed -E 's/.*<value>(.*\.jar)<\/value>.*/\1/')
-          echo "Downloading $JAR_NAME..."
+
+          # Parse latest .jar file from snapshot metadata
+          JAR_NAME=$(curl -s -u admin:Admin@123 "$METADATA_URL" \
+            | grep -A1 '<snapshotVersion>' \
+            | grep '<value>' \
+            | head -n1 \
+            | sed -E 's:.*<value>(.*\.jar)</value>:\1:')
+
+          echo "Downloading: $JAR_NAME"
           curl -u admin:Admin@123 -O "$BASE_URL/$JAR_NAME"
 
       - name: Write SSH key to file
